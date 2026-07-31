@@ -297,6 +297,7 @@ jobs:
         if: ${{ github.event.inputs.CPU == 'sm8650' || github.event.inputs.CPU == 'sm7675' }}
         run: |
           cd kernel_workspace
+          echo 'build --action_env=KCFLAGS="-Wno-error=sometimes-uninitialized"' >> kernel_platform/.bazelrc
           ./kernel_platform/build_with_bazel.py -t ${{ github.event.inputs.CPUD }} ${{ github.event.inputs.BUILD_METHOD }}
           
       - name: Fallback build kernel
