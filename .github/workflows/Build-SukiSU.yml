@@ -298,8 +298,23 @@ jobs:
       - name: Build kernel
         if: ${{ github.event.inputs.CPU == 'sm8650' || github.event.inputs.CPU == 'sm7675' }}
         run: |
-          cd kernel_workspace
-          ./kernel_platform/build_with_bazel.py -t ${{ github.event.inputs.CPUD }} ${{ github.event.inputs.BUILD_METHOD }}
+          cd kernel_workspace/kernel_platform
+          # Setup symlinks that build_with_bazel.py normally does
+          [ ! -e build/msm_kernel_extensions.bzl ] && ln -sf ../msm-kernel/msm_kernel_extensions.bzl build/msm_kernel_extensions.bzl || true
+          [ ! -e build/abl_extensions.bzl ] && ln -sf ../bootable/bootloader/edk2/abl_extensions.bzl build/abl_extensions.bzl || true
+          # Fix SUSFS dentry bug RIGHT BEFORE bazel reads the file
+          sed -i 's/struct dentry \*dentry;\s*$/struct dentry *dentry = NULL;/' common/fs/proc/task_mmu.c
+          grep -q "dentry = NULL" common/fs/proc/task_mmu.c && echo "dentr fix OK" || echo "WARN: fix not applied"
+          # Query targets
+          TARGETS=$(tools/bazel query --ui_event_filters=-info --noshow_progress 'filter("pineapple_gki.*_dist$", attr(generator_function, define_msm_platforms, msm-kernel/...))' 2>/dev/null | tr '\n' ' ')
+          # Build
+          tools/bazel build \
+            --//msm-kernel:skip_abi=true \
+            --//msm-kernel:skip_abl=true \
+            --config=stamp \
+            --user_kmi_symbol_lists=//msm-kernel:android/abi_gki_aarch64_qcom \
+            --ignore_missing_projects \
+            ${TARGETS}
           
       - name: Fallback build kernel
         if: ${{ github.event.inputs.CPU != 'sm8650' && github.event.inputs.CPU != 'sm7675' }}
