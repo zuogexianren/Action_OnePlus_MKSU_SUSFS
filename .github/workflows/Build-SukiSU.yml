@@ -203,7 +203,6 @@ jobs:
           fi
           cd ./common
           patch -p1 < 50_add_susfs_in_gki-${{ github.event.inputs.ANDROID_VERSION }}-${{ github.event.inputs.KERNEL_VERSION }}.patch || true
-          sed -i 's/struct dentry \*dentry;/struct dentry *dentry = NULL;/' fs/proc/task_mmu.c
           echo "完成"
       - name: Apply Hide Stuff Patches
         run: |
@@ -245,6 +244,8 @@ jobs:
           echo "CONFIG_KSU_SUSFS_HIDE_KSU_SUSFS_SYMBOLS=y" >> "$CONFIG_FILE"
           echo "CONFIG_KSU_SUSFS_SPOOF_CMDLINE_OR_BOOTCONFIG=y" >> "$CONFIG_FILE"
           echo "CONFIG_KSU_SUSFS_OPEN_REDIRECT=y" >> "$CONFIG_FILE"
+          # Disable Werror (workaround SUSFS dentry uninitialized bug)
+          echo "CONFIG_WERROR=n" >> "$CONFIG_FILE"
           # Remove check_defconfig
           sed -i 's/check_defconfig//' ./common/build.config.gki
           # LZ4KD配置
@@ -292,10 +293,6 @@ jobs:
               echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
             fi
           fi
-      - name: Disable Werror for SUSFS dentry
-        run: |
-          cd kernel_workspace/kernel_platform
-          echo 'CFLAGS_task_mmu.o += -Wno-error=sometimes-uninitialized' >> common/fs/proc/Makefile
       - name: Build kernel
         if: ${{ github.event.inputs.CPU == 'sm8650' || github.event.inputs.CPU == 'sm7675' }}
         run: |
