@@ -314,6 +314,12 @@ jobs:
             fi
           fi
 
+      - name: Fix SUSFS uninitialized dentry
+        run: |
+          sed -i 's/struct dentry \*dentry;$/struct dentry *dentry = NULL;/' kernel_workspace/kernel_platform/common/fs/proc/task_mmu.c
+
+      
+      
       - name: Build kernel
         if: ${{ github.event.inputs.CPU == 'sm8650' || github.event.inputs.CPU == 'sm7675' }}
         run: |
